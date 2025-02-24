@@ -13,7 +13,7 @@ def stream_cb(pkt: DataPacket) -> None:
     print('') 
 
 def main(args=None):    
-    serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
+    serial = Serial('/dev/cu.Shimmer3-BCA6', DEFAULT_BAUDRATE)
     shim_dev = ShimmerBluetooth(serial)
 
     shim_dev.initialize()
