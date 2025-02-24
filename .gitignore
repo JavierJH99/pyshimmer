@@ -5,3 +5,4 @@ dist
 .eggs
 pyshimmer.egg-info
 .coverage
+env
