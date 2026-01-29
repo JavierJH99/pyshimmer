@@ -2,7 +2,7 @@ import time
 
 from serial import Serial
 
-from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket
+from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket, resolve_bluetooth_port
 
 
 def stream_cb(pkt: DataPacket) -> None:   
@@ -12,8 +12,10 @@ def stream_cb(pkt: DataPacket) -> None:
         print(f'value: ' + str(pkt[chan]))     
     print('') 
 
-def main(args=None):    
-    serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
+def main(args=None):
+    # Set PYSHIMMER_BT_PORT to your Bluetooth serial port, e.g. /dev/rfcomm0, /dev/cu.* or COM3
+    port = resolve_bluetooth_port()
+    serial = Serial(port, DEFAULT_BAUDRATE)
     shim_dev = ShimmerBluetooth(serial)
 
     shim_dev.initialize()

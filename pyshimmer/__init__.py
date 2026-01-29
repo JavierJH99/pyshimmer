@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from .bluetooth.bt_api import ShimmerBluetooth
+from .bluetooth.bt_platform import bluetooth_setup_hint, resolve_bluetooth_port, suggest_bluetooth_ports
 from .bluetooth.bt_commands import DataPacket
 from .dev.base import DEFAULT_BAUDRATE
 from .dev.channels import ChannelDataType, EChannelType
@@ -23,3 +24,4 @@ from .reader.binary_reader import ShimmerBinaryReader
 from .reader.shimmer_reader import ShimmerReader
 from .uart.dock_api import ShimmerDock
 from .util import fmt_hex
+from .ports import SerialPort, list_serial_ports, filter_serial_ports, resolve_serial_port

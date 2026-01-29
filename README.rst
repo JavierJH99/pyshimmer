@@ -39,9 +39,10 @@ develop branch is merged into master to produce the new version.
 Installation
 ------------
 
-The targeted plattform for this library is **Linux**. It has not been tested on other operating systems. In order to
-use all aspects of the library, you need to install the package itself, set up the Bluetooth interface, and possibly
-configure udev rules to ensure that the device names are consistent.
+The primary development and test platform for this library is **Linux**. The core APIs use `pyserial` and can also work
+on **Windows** and **macOS** as long as the Shimmer device is exposed as a serial port by the operating system. In order
+to use all aspects of the library, you need to install the package itself, set up the Bluetooth interface (platform
+specific), and possibly configure udev rules (Linux only) to ensure that device names are consistent.
 
 pyshimmer Package
 ^^^^^^^^^^^^^^^^^
@@ -106,8 +107,8 @@ to disable the unsolicited status acknowledgment at startup. You can optionally 
 With this new command, the state machine in the Bluetooth API of pyshimmer is compatible to the vanilla firmware
 version.
 
-Creating udev rules for persistent device filenames
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Creating udev rules for persistent device filenames (Linux)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When plugging a Shimmer dock into the host, Linux will detect two new serial interfaces and a block device representing
 the internal SD card of the Shimmer:
@@ -173,11 +174,11 @@ You should now have two named device files for each Shimmer dock:
 * :code:`/dev/ttyPPGbl` and :code:`/dev/ttyPPGdev` for the PPG Shimmer bootloader and device interfaces,
 * :code:`/dev/ttyECGbl` and :code:`/dev/ttyECGdev` for the ECG Shimmer bootloader and device interfaces.
 
-Configuring the Bluetooth Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The library uses a :code:`tty` serial interface to communicate with the Shimmer over Bluetooth. Before you can use the
-library, you need to set up the serial channel appropriately. This has only been tested under Arch Linux, but other
-Linux distributions should work as well.
+Configuring the Bluetooth Interface (Linux)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The library uses a serial interface to communicate with the Shimmer over Bluetooth. Before you can use the library,
+you need to set up the serial channel appropriately. This section documents the Linux approach (tested on Arch Linux).
+For Windows and macOS, see the platform notes below.
 
 Requirements:
 
@@ -210,6 +211,44 @@ with the following name: :code:`/dev/rfcomm<bind_id>`.
 The file acts as a regular serial device and allows you to communicate with the Shimmer. The file is also used by the
 library.
 
+Platform notes (Windows and macOS)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This library expects a serial port path. On non-Linux systems you typically do **not** create an rfcomm device
+manually; instead, you pair the device in the OS and use the resulting serial port.
+
+Windows
+"""""""
+* Dock (USB): install the FTDI driver if needed, then use the COM port shown under *Device Manager → Ports (COM & LPT)*.
+* Bluetooth: pair the Shimmer in Windows Bluetooth settings, then use the COM port that Windows exposes for the device.
+  The port name is typically :code:`COM3`, :code:`COM4`, etc. For ports >= 10, use :code:`\\\\.\\COM10`.
+* Tests: some tests use POSIX PTYs and may not run on Windows without additional tooling.
+
+macOS
+"""""
+* Dock (USB): the device will appear as :code:`/dev/tty.*` and :code:`/dev/cu.*` (use the :code:`/dev/cu.*` variant for
+  outgoing connections).
+* Bluetooth: pair in System Settings → Bluetooth; then look for a new :code:`/dev/cu.*` device (e.g. :code:`/dev/cu.*-SerialPort`).
+* You can list candidate ports with :code:`ls /dev/cu.*`.
+* You can also list ports from Python:
+
+.. code-block:: python
+
+    from pyshimmer import list_serial_ports
+    print(list_serial_ports())
+
+Bluetooth helper (all platforms)
+"""""""""""""""""""""""""""""""
+You can use the Bluetooth helper to resolve a port and show a platform hint:
+
+.. code-block:: python
+
+    from pyshimmer import resolve_bluetooth_port, bluetooth_setup_hint
+
+    try:
+        port = resolve_bluetooth_port()
+    except ValueError:
+        print(bluetooth_setup_hint())
+
 Using the API
 -------------
 
@@ -217,7 +256,7 @@ Using the Bluetooth interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you want to connect to the Bluetooth interface, use the :code:`ShimmerBluetooth` class. The API only offers blocking
-calls.
+calls. In the example below, the serial port is resolved from the :code:`PYSHIMMER_BT_PORT` environment variable.
 
 .. code-block:: python
 
@@ -225,7 +264,7 @@ calls.
 
     from serial import Serial
 
-    from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket, EChannelType
+    from pyshimmer import ShimmerBluetooth, DEFAULT_BAUDRATE, DataPacket, EChannelType, resolve_bluetooth_port
 
 
     def handler(pkt: DataPacket) -> None:
@@ -234,7 +273,8 @@ calls.
 
 
     if __name__ == '__main__':
-        serial = Serial('/dev/rfcomm42', DEFAULT_BAUDRATE)
+        port = resolve_bluetooth_port()
+        serial = Serial(port, DEFAULT_BAUDRATE)
         shim_dev = ShimmerBluetooth(serial)
 
         shim_dev.initialize()
@@ -259,10 +299,11 @@ Using the Dock API
 
     from serial import Serial
 
-    from pyshimmer import ShimmerDock, DEFAULT_BAUDRATE, fmt_hex
+    from pyshimmer import ShimmerDock, DEFAULT_BAUDRATE, fmt_hex, resolve_serial_port
 
     if __name__ == '__main__':
-        serial = Serial('/dev/ttyPPGdev', DEFAULT_BAUDRATE)
+        port = resolve_serial_port()
+        serial = Serial(port, DEFAULT_BAUDRATE)
         shim_dock = ShimmerDock(serial)
 
         mac = shim_dock.get_mac_address()
